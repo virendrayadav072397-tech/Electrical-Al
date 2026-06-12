@@ -29,7 +29,7 @@ export default function App() {
     formData.append('language', language);
 
     try {
-      const res = await fetch('http://localhost:8000/api/upload', {
+      const res = await fetch('https://vy0723-electrical-ai.hf.space/api/upload', {
         method: 'POST',
         body: formData,
       });
@@ -53,7 +53,7 @@ export default function App() {
     setChat((prev) => [...prev, { sender: 'user', text: currentInput }]);
 
     try {
-      const res = await fetch('http://localhost:8000/api/chat', {
+      const res = await fetch('https://vy0723-electrical-ai.hf.space/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId, user_input: currentInput }),
