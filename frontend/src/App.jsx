@@ -1,507 +1,937 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from "react";
 
+const BASE_URL = "https://vy0723-electrical-ai.hf.space";
+
+// ─── LANGUAGE LABELS ───────────────────────────────────────────────────────────
+const LABELS = {
+  english: {
+    appTitle: "Electrical AI",
+    appSubtitle: "Intelligent Electrical & Automation Assistant",
+    selectMode: "What would you like to do?",
+    troubleshoot: "Troubleshoot",
+    learning: "Learning",
+    research: "Research",
+    uploadTitle: "Upload Electrical Drawing",
+    uploadSub: "Drag & drop or click — PDF, PNG, JPG (max 100MB)",
+    uploadBtn: "Browse File",
+    drawingUploaded: "Drawing uploaded",
+    describeIssue: "Describe Your Issue",
+    describePlaceholder: `Describe the problem in detail. Examples:\n• "MH kaam nahi kr rha" (Main Hoist not working)\n• "LT nahi chal rha" (Long Travel not running)\n• "Drive fault aa gaya"\n• "Motor start nahi ho rha"`,
+    letsBegin: "Let's Begin →",
+    newTroubleshoot: "+ New Troubleshooting",
+    solutionStep: "Step",
+    yourInput: "Your Reading / Observation",
+    inputPlaceholder: "Enter what you observed or measured...",
+    submitInput: "Submit Reading →",
+    problemSolved: "✓ Problem Solved",
+    conclusionTitle: "Troubleshooting Report",
+    rootCause: "Root Cause Analysis",
+    stepsTitle: "Steps Performed",
+    drawingRef: "Drawing Reference",
+    learningTitle: "Learning Mode",
+    learningPlaceholder: "Enter component or topic name...\nExamples: VFD Drive, PLC DI/DO, Contactor, Relay, Circuit Breaker, Encoder",
+    learnBtn: "Learn Now →",
+    researchTitle: "Research Mode",
+    researchPlaceholder: "Enter your research query...\nExamples: IEC standards for motor protection, Crane electrical safety norms",
+    researchBtn: "Start Research →",
+    followUp: "Ask a follow-up or request deeper detail...",
+    followUpBtn: "Ask →",
+    menuHistory: "History",
+    menuLearning: "Lessons",
+    menuProfile: "Profile",
+    troubleshootHistory: "Troubleshooting History",
+    learningHistory: "Learning Sessions",
+    changeDrawing: "Change Drawing",
+    solved: "SOLVED",
+    ongoing: "ONGOING",
+    analyzing: "Analyzing drawing...",
+    thinking: "AI is analyzing your input...",
+    noFile: "Please upload a drawing first.",
+    noDesc: "Please describe your issue.",
+    quickInputs: ["Fault cleared", "No reading", "Fixed ✓"],
+    examples: ["MH not working", "LT not running", "Drive fault", "Motor tripped"],
+  },
+  hindi: {
+    appTitle: "इलेक्ट्रिकल AI",
+    appSubtitle: "बुद्धिमान इलेक्ट्रिकल और ऑटोमेशन सहायक",
+    selectMode: "आप क्या करना चाहते हैं?",
+    troubleshoot: "समस्या निवारण",
+    learning: "सीखना",
+    research: "अनुसंधान",
+    uploadTitle: "ड्रॉइंग अपलोड करें",
+    uploadSub: "खींचें या क्लिक करें — PDF, PNG, JPG (अधिकतम 100MB)",
+    uploadBtn: "फ़ाइल चुनें",
+    drawingUploaded: "ड्रॉइंग अपलोड हो गई",
+    describeIssue: "अपनी समस्या बताएं",
+    describePlaceholder: "समस्या का विस्तार से वर्णन करें...\nउदाहरण: MH काम नहीं कर रहा, LT नहीं चल रहा, ड्राइव फॉल्ट आ गया",
+    letsBegin: "शुरू करें →",
+    newTroubleshoot: "+ नई समस्या निवारण",
+    solutionStep: "चरण",
+    yourInput: "आपकी रीडिंग / अवलोकन",
+    inputPlaceholder: "आपने जो देखा या मापा वह दर्ज करें...",
+    submitInput: "रीडिंग जमा करें →",
+    problemSolved: "✓ समस्या हल हो गई",
+    conclusionTitle: "समस्या निवारण रिपोर्ट",
+    rootCause: "मूल कारण विश्लेषण",
+    stepsTitle: "किए गए चरण",
+    drawingRef: "ड्रॉइंग संदर्भ",
+    learningTitle: "सीखने का मोड",
+    learningPlaceholder: "घटक या विषय का नाम दर्ज करें...",
+    learnBtn: "अभी सीखें →",
+    researchTitle: "अनुसंधान मोड",
+    researchPlaceholder: "अपनी अनुसंधान क्वेरी दर्ज करें...",
+    researchBtn: "अनुसंधान शुरू करें →",
+    followUp: "अनुवर्ती प्रश्न पूछें...",
+    followUpBtn: "पूछें →",
+    menuHistory: "इतिहास",
+    menuLearning: "पाठ",
+    menuProfile: "प्रोफ़ाइल",
+    troubleshootHistory: "समस्या निवारण इतिहास",
+    learningHistory: "सीखने के सत्र",
+    changeDrawing: "ड्रॉइंग बदलें",
+    solved: "हल",
+    ongoing: "जारी",
+    analyzing: "ड्रॉइंग का विश्लेषण हो रहा है...",
+    thinking: "AI विश्लेषण कर रहा है...",
+    noFile: "कृपया पहले ड्रॉइंग अपलोड करें।",
+    noDesc: "कृपया अपनी समस्या बताएं।",
+    quickInputs: ["फॉल्ट ठीक हो गया", "कोई रीडिंग नहीं", "ठीक हो गया ✓"],
+    examples: ["MH काम नहीं कर रहा", "LT नहीं चल रहा", "ड्राइव फॉल्ट", "मोटर ट्रिप हो गई"],
+  },
+  hinglish: {
+    appTitle: "Electrical AI",
+    appSubtitle: "Aapka Smart Electrical & Automation Saathi",
+    selectMode: "Aap kya karna chahte hain?",
+    troubleshoot: "Troubleshoot Karo",
+    learning: "Seekho",
+    research: "Research Karo",
+    uploadTitle: "Electrical Drawing Upload Karo",
+    uploadSub: "Drag & drop karo ya click karo — PDF, PNG, JPG (max 100MB)",
+    uploadBtn: "File Choose Karo",
+    drawingUploaded: "Drawing upload ho gayi ✓",
+    describeIssue: "Apni Problem Batao",
+    describePlaceholder: `Problem detail me batao. Examples:\n• "MH kaam nahi kr rha"\n• "LT nahi chal rha"\n• "Drive fault aa gaya"\n• "Motor start nahi ho rha"`,
+    letsBegin: "Chalo Shuru Karte Hain →",
+    newTroubleshoot: "+ Nayi Troubleshooting Shuru Karo",
+    solutionStep: "Step",
+    yourInput: "Tumhari Reading / Observation",
+    inputPlaceholder: "Jo tumne dekha ya measure kiya vo likho...",
+    submitInput: "Reading Submit Karo →",
+    problemSolved: "✓ Problem Solve Ho Gayi!",
+    conclusionTitle: "Troubleshooting Report",
+    rootCause: "Root Cause Analysis",
+    stepsTitle: "Kiye Gaye Steps",
+    drawingRef: "Drawing Reference",
+    learningTitle: "Learning Mode",
+    learningPlaceholder: "Component ya topic ka naam likho...\nExamples: VFD Drive, PLC DI/DO, Contactor, Relay, Circuit Breaker",
+    learnBtn: "Seekhna Shuru Karo →",
+    researchTitle: "Research Mode",
+    researchPlaceholder: "Research query likho...",
+    researchBtn: "Research Shuru Karo →",
+    followUp: "Aur sawaal pucho ya zyada detail maango...",
+    followUpBtn: "Pucho →",
+    menuHistory: "History",
+    menuLearning: "Lessons",
+    menuProfile: "Profile",
+    troubleshootHistory: "Troubleshooting History",
+    learningHistory: "Learning Sessions",
+    changeDrawing: "Drawing Badlo",
+    solved: "SOLVE",
+    ongoing: "CHAL RAHA HAI",
+    analyzing: "Drawing analyze ho rahi hai...",
+    thinking: "AI tumhara input samajh raha hai...",
+    noFile: "Pehle drawing upload karo.",
+    noDesc: "Apni problem batao.",
+    quickInputs: ["Fault clear ho gaya", "Koi reading nahi", "Theek ho gaya ✓"],
+    examples: ["MH kaam nahi kr rha", "LT nahi chal rha", "Drive fault aa gaya", "Motor trip ho gaya"],
+  },
+};
+
+// ─── DRAWING HIGHLIGHT ──────────────────────────────────────────────────────────
+function DrawingHighlight({ imageDataUrl, highlightInfo, lang }) {
+  if (!imageDataUrl) return null;
+  return (
+    <div style={{
+      background: "#0f172a", border: "1px solid #f59e0b", borderRadius: 10,
+      padding: "12px", marginTop: 12
+    }}>
+      <div style={{ color: "#f59e0b", fontSize: 11, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+        📐 {LABELS[lang].drawingRef} {highlightInfo?.component_tag ? `— TAG: ${highlightInfo.component_tag}` : ""}
+      </div>
+      <div style={{ position: "relative", borderRadius: 8, overflow: "hidden" }}>
+        <img src={imageDataUrl} alt="drawing" style={{ width: "100%", borderRadius: 8, display: "block" }} />
+        {highlightInfo?.drawing_highlight && (
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0,
+            background: "rgba(245,158,11,0.9)", padding: "6px 10px",
+            fontSize: 12, color: "#000", fontWeight: 600
+          }}>
+            🔍 {highlightInfo.drawing_highlight}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── SPINNER ───────────────────────────────────────────────────────────────────
+function Spinner({ text }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", background: "#1e293b", borderRadius: 10, margin: "10px 0" }}>
+      <div style={{
+        width: 18, height: 18, border: "3px solid #334155", borderTop: "3px solid #f59e0b",
+        borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0
+      }} />
+      <span style={{ color: "#94a3b8", fontSize: 13 }}>{text || "Processing..."}</span>
+    </div>
+  );
+}
+
+// ─── PARSE AI RESPONSE ─────────────────────────────────────────────────────────
+function parseAIResponse(text) {
+  let highlight = null;
+  let conclusion = null;
+  let cleanText = text;
+
+  const jsonMatches = text.match(/\{[^{}]*"drawing_highlight"[^{}]*\}/g);
+  if (jsonMatches) {
+    try {
+      highlight = JSON.parse(jsonMatches[jsonMatches.length - 1]);
+      cleanText = cleanText.replace(/\{[^{}]*"drawing_highlight"[^{}]*\}/g, "").trim();
+    } catch (_) {}
+  }
+
+  const conclusionMatch = text.match(/\{[^{}]*"conclusion"\s*:\s*true[\s\S]*?\}/);
+  if (conclusionMatch) {
+    try {
+      conclusion = JSON.parse(conclusionMatch[0]);
+      cleanText = cleanText.replace(conclusionMatch[0], "").trim();
+    } catch (_) {}
+  }
+
+  return { cleanText, highlight, conclusion };
+}
+
+// ─── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
-  // Navigation & Preferences Layout Grid States
-  const [globalMode, setGlobalMode] = useState('troubleshoot'); // troubleshoot, learning, research
-  const [currentLanguage, setCurrentLanguage] = useState('hinglish'); // english, hindi, hinglish
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [historyBufferLogs, setHistoryBufferLogs] = useState([]);
+  const [lang, setLang] = useState("hinglish");
+  const [mode, setMode] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [menuTab, setMenuTab] = useState("history");
 
-  // Troubleshoot Core Structural Pipeline Matrices
-  const [file, setFile] = useState(null);
-  const [problemDescription, setProblemDescription] = useState('');
-  const [activeSession, setActiveSession] = useState(null);
-  const [userReadingInput, setUserReadingInput] = useState('');
-  const [conclusionData, setConclusionData] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  // Troubleshoot
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedImageDataUrl, setUploadedImageDataUrl] = useState(null);
+  const [issueDesc, setIssueDesc] = useState("");
+  const [tsStarted, setTsStarted] = useState(false);
+  const [tsMessages, setTsMessages] = useState([]);
+  const [tsInput, setTsInput] = useState("");
+  const [tsLoading, setTsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+  const [tsSolved, setTsSolved] = useState(false);
+  const [tsConclusion, setTsConclusion] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
 
-  // Learning Core Structural Pipeline Matrices
-  const [learningQuery, setLearningQuery] = useState('');
-  const [learningResponse, setLearningResponse] = useState(null);
-  const [learningFollowUp, setLearningFollowUp] = useState('');
+  // Learning/Research
+  const [lrQuery, setLrQuery] = useState("");
+  const [lrMessages, setLrMessages] = useState([]);
+  const [lrInput, setLrInput] = useState("");
+  const [lrLoading, setLrLoading] = useState(false);
+  const [lrStarted, setLrStarted] = useState(false);
+  const [lrConversation, setLrConversation] = useState([]);
 
-  const BASE_URL = 'https://vy0723-electrical-ai.hf.space';
+  // History
+  const [troubleshootHistory, setTroubleshootHistory] = useState([]);
+  const [learningHistory, setLearningHistory] = useState([]);
+
+  const chatEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const L = LABELS[lang];
 
   useEffect(() => {
-    fetchHistoryTrackerLogs();
-  }, [activeSession, conclusionData, learningResponse]);
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [tsMessages, lrMessages, tsLoading, lrLoading]);
 
-  const fetchHistoryTrackerLogs = async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/v3/global/history-logs`);
-      const logs = await res.json();
-      setHistoryBufferLogs(logs);
-    } catch (err) {
-      console.error("Historical node trace exception:", err);
-    }
-  };
+  // ── FILE HANDLING ──────────────────────────────────────────────────────────
+  const handleFile = useCallback((file) => {
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) { alert("File too large. Max 100MB."); return; }
+    const validTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+    if (!validTypes.includes(file.type)) { alert("Only PDF, PNG, JPG allowed."); return; }
+    setUploadedFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (file.type !== "application/pdf") setUploadedImageDataUrl(e.target.result);
+      else setUploadedImageDataUrl(null);
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
-  const handleTroubleshootInitSubmit = async (e) => {
-    e.preventDefault();
-    if (!file || !problemDescription) return;
-    setIsProcessing(true);
+  const handleDrop = useCallback((e) => {
+    e.preventDefault(); setDragOver(false);
+    handleFile(e.dataTransfer.files[0]);
+  }, [handleFile]);
+
+  // ── TROUBLESHOOT START → POST /api/upload ─────────────────────────────────
+  async function startTroubleshoot() {
+    if (!uploadedFile) { alert(L.noFile); return; }
+    if (!issueDesc.trim()) { alert(L.noDesc); return; }
+    setTsStarted(true);
+    setTsLoading(true);
+    setTsMessages([]);
+    setTsSolved(false);
+    setTsConclusion(null);
 
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("language", currentLanguage);
-    formData.append("problem_statement", problemDescription);
+    formData.append("file", uploadedFile);
+    formData.append("problem", issueDesc);
+    formData.append("language", lang);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v3/troubleshoot/init`, {
-        method: 'POST',
-        body: formData
-      });
-      if (!res.ok) throw new Error("100MB premium buffer boundary initialization fault exception.");
+      const res = await fetch(`${BASE_URL}/api/upload`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
-      setActiveSession(data);
+      setSessionId(data.session_id);
+      const { cleanText, highlight, conclusion } = parseAIResponse(data.response);
+      if (conclusion) { setTsConclusion(conclusion); setTsSolved(true); }
+      setTsMessages([{ role: "ai", text: cleanText, highlight, stepNumber: 1 }]);
+      setTroubleshootHistory(prev => [{ date: new Date().toLocaleDateString(), issue: issueDesc, status: "ongoing" }, ...prev].slice(0, 20));
     } catch (err) {
-      alert(err.message);
-    } finally {
-      setIsProcessing(false);
+      setTsMessages([{ role: "ai", text: `Connection error: ${err.message}. Please check backend is running.`, highlight: null, stepNumber: 1 }]);
     }
-  };
+    setTsLoading(false);
+  }
 
-  const handleTroubleshootStepProgression = async (e) => {
-    e.preventDefault();
-    if (!userReadingInput || !activeSession) return;
+  // ── TROUBLESHOOT CONTINUE → POST /api/chat ────────────────────────────────
+  async function submitTsInput() {
+    if (!tsInput.trim() || tsSolved || !sessionId) return;
+    const userText = tsInput.trim();
+    setTsInput("");
+    setTsMessages(prev => [...prev, { role: "user", text: userText }]);
+    setTsLoading(true);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v3/troubleshoot/progress`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: activeSession.session_id,
-          user_reading_input: userReadingInput,
-          selected_language: currentLanguage
-        })
+      const res = await fetch(`${BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, user_input: userText }),
       });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
-
-      if (data.redirect_to_conclusion) {
-        const conclusionRes = await fetch(`${BASE_URL}/api/v3/troubleshoot/conclusion/${activeSession.session_id}`);
-        const finalData = await conclusionRes.json();
-        setConclusionData(finalData);
-        setActiveSession(null);
-      } else {
-        setActiveSession(data);
-        setUserReadingInput('');
+      const { cleanText, highlight, conclusion } = parseAIResponse(data.response);
+      const stepN = tsMessages.filter(m => m.role === "ai").length + 1;
+      if (conclusion) {
+        setTsConclusion(conclusion);
+        setTsSolved(true);
+        setTroubleshootHistory(prev => prev.map((h, i) => i === 0 ? { ...h, status: "solved" } : h));
       }
+      setTsMessages(prev => [...prev, { role: "ai", text: cleanText, highlight, stepNumber: stepN }]);
     } catch (err) {
-      console.error("Loop iteration constraint update execution fault:", err);
+      setTsMessages(prev => [...prev, { role: "ai", text: `Error: ${err.message}`, highlight: null, stepNumber: 0 }]);
     }
-  };
+    setTsLoading(false);
+  }
 
-  const handleLearningQuerySubmit = async (e) => {
-    e.preventDefault();
-    if (!learningQuery) return;
+  // ── LEARNING/RESEARCH → POST /api/chat with session ──────────────────────
+  async function startLR() {
+    if (!lrQuery.trim()) return;
+    setLrStarted(true);
+    setLrLoading(true);
+    setLrMessages([]);
+
+    // Learning/Research uses /api/upload with a dummy text "file"
+    const formData = new FormData();
+    const blob = new Blob([`MODE:${mode.toUpperCase()}\nQUERY:${lrQuery}`], { type: "text/plain" });
+    formData.append("file", blob, "query.txt");
+    formData.append("problem", `${mode === "learning" ? "LEARNING REQUEST" : "RESEARCH REQUEST"}: ${lrQuery}`);
+    formData.append("language", lang);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v3/learning/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query_text: learningQuery,
-          selected_language: currentLanguage
-        })
-      });
+      const res = await fetch(`${BASE_URL}/api/upload`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
-      setLearningResponse(data);
+      setSessionId(data.session_id);
+      setLrConversation([data.session_id]);
+      setLrMessages([{ role: "ai", text: data.response }]);
+      setLearningHistory(prev => [{ date: new Date().toLocaleDateString(), query: lrQuery, mode }, ...prev].slice(0, 20));
     } catch (err) {
-      console.error("Curriculum engine index mapping failure:", err);
+      setLrMessages([{ role: "ai", text: `Error: ${err.message}` }]);
     }
-  };
+    setLrLoading(false);
+  }
 
-  const handleLearningFollowUpSubmit = async (e) => {
-    e.preventDefault();
-    if (!learningFollowUp || !learningResponse) return;
+  async function submitLRFollowUp() {
+    if (!lrInput.trim() || !sessionId) return;
+    const userText = lrInput.trim();
+    setLrInput("");
+    setLrMessages(prev => [...prev, { role: "user", text: userText }]);
+    setLrLoading(true);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/v3/learning/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query_text: learningQuery,
-          selected_language: currentLanguage,
-          deep_follow_up: learningFollowUp
-        })
+      const res = await fetch(`${BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, user_input: userText }),
       });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
-      setLearningResponse(data);
-      setLearningFollowUp('');
+      setLrMessages(prev => [...prev, { role: "ai", text: data.response }]);
     } catch (err) {
-      console.error("Deep trace serialization mismatch exception:", err);
+      setLrMessages(prev => [...prev, { role: "ai", text: `Error: ${err.message}` }]);
     }
-  };
+    setLrLoading(false);
+  }
 
-  const triggerResetTroubleshooting = () => {
-    setFile(null);
-    setProblemDescription('');
-    setActiveSession(null);
-    setUserReadingInput('');
-    setConclusionData(null);
-  };
+  // ── RESET ──────────────────────────────────────────────────────────────────
+  function newTroubleshoot() {
+    setTsStarted(false); setTsMessages([]); setTsInput("");
+    setTsSolved(false); setTsConclusion(null); setSessionId(null);
+    setUploadedFile(null); setUploadedImageDataUrl(null); setIssueDesc("");
+  }
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden selection:bg-emerald-400 selection:text-black">
-      
-      {/* 🌐 ABSOLUTE PREMIUM MULTI-LANGUAGE DROPDOWN ANCHOR TRIGGER MODULE */}
-      <div className="absolute top-4 right-4 z-50 flex items-center bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 shadow-2xl">
-        <span className="text-xs px-2 text-slate-400 font-semibold uppercase tracking-wider">🌐 Lang:</span>
-        {['english', 'hindi', 'hinglish'].map((lang) => (
-          <button
-            key={lang}
-            onClick={() => setCurrentLanguage(lang)}
-            className={`px-3 py-1 text-[11px] font-black rounded-lg uppercase tracking-wide transition-all duration-200 ${currentLanguage === lang ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-md font-extrabold' : 'text-slate-400 hover:text-white'}`}
-          >
-            {lang}
-          </button>
-        ))}
-      </div>
+  function resetLR() {
+    setLrStarted(false); setLrMessages([]); setLrInput(""); setLrQuery(""); setSessionId(null);
+  }
 
-      {/* 🍔 THREE-LINE FLYOUT SIDEBAR OPTION HAMBURGER NAV BUTTON */}
-      <button 
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="absolute top-4 left-4 z-50 p-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl shadow-2xl transition-transform active:scale-95"
-      >
-        <div className="w-5 h-0.5 bg-emerald-400 my-1 rounded"></div>
-        <div className="w-5 h-0.5 bg-emerald-400 my-1 rounded"></div>
-        <div className="w-5 h-0.5 bg-emerald-400 my-1 rounded"></div>
-      </button>
-
-      {/* 🗂️ SLIDING SYSTEM ANALYSIS REGISTRY DRAWER OVERLAY PANEL */}
-      <div className={`fixed inset-y-0 left-0 w-80 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800 p-6 z-40 transform transition-transform duration-300 shadow-2xl ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex justify-between items-center mt-14 border-b border-slate-800 pb-4 mb-6">
-          <h2 className="text-sm font-black tracking-widest text-emerald-400 uppercase">SYSTEM REGISTRY HUB</h2>
-          <button onClick={() => setSidebarOpen(false)} className="text-slate-500 hover:text-white font-bold text-xs uppercase tracking-wider">❌ CLOSE</button>
+  // ── CONCLUSION PAGE ────────────────────────────────────────────────────────
+  function ConclusionPage() {
+    return (
+      <div style={{ padding: "20px 0" }}>
+        <div style={{
+          background: "linear-gradient(135deg, #064e3b, #065f46)", borderRadius: 14,
+          padding: "20px 24px", marginBottom: 20, border: "1px solid #10b981"
+        }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#10b981", marginBottom: 6 }}>✅ {L.conclusionTitle}</div>
+          <div style={{ color: "#6ee7b7", fontSize: 13 }}>{issueDesc}</div>
         </div>
 
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">OPERATOR METADATA</h3>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-emerald-400">
-              ROLE: AUTOMATION_ENGINEER_V3
-            </div>
+        {tsConclusion?.root_cause && (
+          <div style={{ background: "#1e293b", borderRadius: 12, padding: "16px 20px", marginBottom: 16, border: "1px solid #f59e0b" }}>
+            <div style={{ color: "#f59e0b", fontWeight: 700, marginBottom: 8, fontSize: 14 }}>🔍 {L.rootCause}</div>
+            <div style={{ color: "#e2e8f0", lineHeight: 1.7, fontSize: 14 }}>{tsConclusion.root_cause}</div>
           </div>
+        )}
 
+        <div style={{ background: "#1e293b", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
+          <div style={{ color: "#94a3b8", fontWeight: 700, marginBottom: 12, fontSize: 13 }}>📋 {L.stepsTitle}</div>
+          {tsMessages.map((m, i) => (
+            <div key={i} style={{
+              display: "flex", gap: 12, marginBottom: 10,
+              padding: "10px 14px", borderRadius: 8,
+              background: m.role === "ai" ? "#0f172a" : "#1a2744",
+              border: `1px solid ${m.role === "ai" ? "#334155" : "#2d3f6b"}`
+            }}>
+              <div style={{
+                minWidth: 28, height: 28, borderRadius: "50%",
+                background: m.role === "ai" ? "#f59e0b" : "#3b82f6",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 800, color: "#000", flexShrink: 0
+              }}>
+                {m.role === "ai" ? "AI" : "U"}
+              </div>
+              <div style={{ color: "#e2e8f0", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{m.text}</div>
+            </div>
+          ))}
+        </div>
+
+        <button onClick={newTroubleshoot} style={{
+          width: "100%", padding: "14px", background: "#f59e0b", color: "#000",
+          border: "none", borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: "pointer"
+        }}>
+          {L.newTroubleshoot}
+        </button>
+      </div>
+    );
+  }
+
+  // ── TROUBLESHOOT CHAT ──────────────────────────────────────────────────────
+  function TroubleshootChat() {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <div style={{
+          background: "#1e293b", borderRadius: 12, padding: "12px 16px", marginBottom: 14,
+          display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #334155"
+        }}>
           <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">TROUBLESHOOTING ARCHIVE STACK</h3>
-            <div className="space-y-2 overflow-y-auto max-h-[65vh] pr-1">
-              {historyBufferLogs.length === 0 ? (
-                <p className="text-xs text-slate-600 italic">No historical iterations cached in local loop memory storage units.</p>
-              ) : (
-                historyBufferLogs.map((item, idx) => (
-                  <div key={idx} className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 text-xs hover:border-emerald-500/30 transition-all">
-                    <div className="flex justify-between items-center font-semibold text-slate-300 mb-1">
-                      <span className="truncate max-w-[140px]">{item.label}</span>
-                      <span className="text-[10px] text-emerald-400 font-mono font-bold shrink-0">{item.resolved_state}</span>
+            <div style={{ color: "#f59e0b", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>🔧 TROUBLESHOOTING SESSION</div>
+            <div style={{ color: "#64748b", fontSize: 11, marginTop: 2 }}>{uploadedFile?.name}</div>
+          </div>
+          <button onClick={newTroubleshoot} style={{
+            padding: "6px 12px", background: "#0f172a", color: "#f59e0b",
+            border: "1px solid #f59e0b", borderRadius: 8, fontSize: 11, cursor: "pointer", fontWeight: 600
+          }}>
+            {L.newTroubleshoot}
+          </button>
+        </div>
+
+        <div style={{
+          background: "#172033", borderRadius: 10, padding: "10px 14px", marginBottom: 14,
+          border: "1px solid #1e3a5f", fontSize: 13, color: "#94a3b8"
+        }}>
+          <span style={{ color: "#60a5fa", fontWeight: 600 }}>Problem: </span>{issueDesc}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {tsMessages.map((m, i) => (
+            <div key={i}>
+              {m.role === "ai" ? (
+                <div style={{ background: "#0f172a", borderRadius: 12, padding: "16px 18px", border: "1px solid #1e293b" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <div style={{ background: "#f59e0b", color: "#000", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>
+                      ⚡ {L.solutionStep} {m.stepNumber}
                     </div>
-                    <p className="text-[9px] text-slate-600 font-mono truncate">{item.session_id}</p>
                   </div>
-                ))
+                  <div style={{ color: "#e2e8f0", fontSize: 14, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{m.text}</div>
+                  {m.highlight && uploadedImageDataUrl && (
+                    <DrawingHighlight imageDataUrl={uploadedImageDataUrl} highlightInfo={m.highlight} lang={lang} />
+                  )}
+                  {m.highlight?.component_tag && (
+                    <div style={{
+                      marginTop: 10, display: "inline-block", background: "#1e3a5f",
+                      color: "#60a5fa", padding: "4px 10px", borderRadius: 6,
+                      fontSize: 12, fontWeight: 700, border: "1px solid #2d5fa6"
+                    }}>
+                      🏷️ TAG: {m.highlight.component_tag}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{
+                    background: "#1a2744", borderRadius: 12, padding: "12px 16px",
+                    border: "1px solid #2d3f6b", maxWidth: "85%"
+                  }}>
+                    <div style={{ color: "#93c5fd", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>👷 Your Reading</div>
+                    <div style={{ color: "#e2e8f0", fontSize: 14, whiteSpace: "pre-wrap" }}>{m.text}</div>
+                  </div>
+                </div>
               )}
             </div>
+          ))}
+
+          {tsLoading && <Spinner text={L.thinking} />}
+          {tsSolved && tsConclusion && <ConclusionPage />}
+        </div>
+
+        {!tsSolved && (
+          <div style={{ marginTop: 16, background: "#0f172a", borderRadius: 12, padding: "14px", border: "1px solid #1e293b" }}>
+            <div style={{ color: "#64748b", fontSize: 12, marginBottom: 8, fontWeight: 600 }}>📟 {L.yourInput}</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <textarea
+                value={tsInput}
+                onChange={e => setTsInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) submitTsInput(); }}
+                placeholder={L.inputPlaceholder}
+                disabled={tsLoading}
+                rows={2}
+                style={{
+                  flex: 1, background: "#1e293b", border: "1px solid #334155", borderRadius: 8,
+                  padding: "10px 12px", color: "#e2e8f0", fontSize: 13, resize: "none",
+                  fontFamily: "inherit", outline: "none"
+                }}
+              />
+              <button onClick={submitTsInput} disabled={tsLoading || !tsInput.trim()} style={{
+                background: tsLoading || !tsInput.trim() ? "#334155" : "#f59e0b",
+                color: "#000", border: "none", borderRadius: 8,
+                padding: "0 16px", cursor: tsLoading ? "default" : "pointer",
+                fontWeight: 700, fontSize: 16, minWidth: 48
+              }}>→</button>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              {L.quickInputs.map(q => (
+                <button key={q} onClick={() => setTsInput(q)} style={{
+                  background: "#1e293b", border: "1px solid #334155", borderRadius: 6,
+                  color: "#94a3b8", padding: "4px 10px", fontSize: 11, cursor: "pointer"
+                }}>{q}</button>
+              ))}
+            </div>
           </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+    );
+  }
+
+  // ── LR CHAT ────────────────────────────────────────────────────────────────
+  function LRChat() {
+    return (
+      <div>
+        <div style={{
+          background: "#1e293b", borderRadius: 12, padding: "12px 16px", marginBottom: 14,
+          display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #334155"
+        }}>
+          <div>
+            <div style={{ color: mode === "learning" ? "#818cf8" : "#34d399", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>
+              {mode === "learning" ? "📚 LEARNING" : "🔬 RESEARCH"} SESSION
+            </div>
+            <div style={{ color: "#64748b", fontSize: 11, marginTop: 2 }}>{lrQuery}</div>
+          </div>
+          <button onClick={resetLR} style={{
+            padding: "6px 12px", background: "#0f172a",
+            color: mode === "learning" ? "#818cf8" : "#34d399",
+            border: `1px solid ${mode === "learning" ? "#818cf8" : "#34d399"}`,
+            borderRadius: 8, fontSize: 11, cursor: "pointer", fontWeight: 600
+          }}>New Query</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {lrMessages.map((m, i) => (
+            <div key={i}>
+              {m.role === "ai" ? (
+                <div style={{ background: "#0f172a", borderRadius: 12, padding: "18px 20px", border: "1px solid #1e293b" }}>
+                  <div style={{ color: "#e2e8f0", fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{m.text}</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{ background: "#1a2744", borderRadius: 12, padding: "12px 16px", border: "1px solid #2d3f6b", maxWidth: "85%" }}>
+                    <div style={{ color: "#e2e8f0", fontSize: 14 }}>{m.text}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {lrLoading && <Spinner text={L.thinking} />}
+        </div>
+
+        {lrStarted && !lrLoading && (
+          <div style={{ marginTop: 16, background: "#0f172a", borderRadius: 12, padding: "14px", border: "1px solid #1e293b" }}>
+            <div style={{ color: "#64748b", fontSize: 12, marginBottom: 8 }}>{L.followUp}</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input value={lrInput} onChange={e => setLrInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") submitLRFollowUp(); }}
+                placeholder="Ask more..."
+                style={{
+                  flex: 1, background: "#1e293b", border: "1px solid #334155", borderRadius: 8,
+                  padding: "10px 12px", color: "#e2e8f0", fontSize: 13, outline: "none"
+                }}
+              />
+              <button onClick={submitLRFollowUp} disabled={!lrInput.trim()} style={{
+                background: lrInput.trim() ? (mode === "learning" ? "#818cf8" : "#34d399") : "#334155",
+                color: "#000", border: "none", borderRadius: 8,
+                padding: "0 16px", cursor: "pointer", fontWeight: 700, fontSize: 14
+              }}>{L.followUpBtn}</button>
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+    );
+  }
+
+  // ── SIDE MENU ──────────────────────────────────────────────────────────────
+  function SideMenu() {
+    return (
+      <div style={{
+        position: "fixed", top: 0, left: 0, bottom: 0, width: 290,
+        background: "#0b1120", borderRight: "1px solid #1e293b",
+        zIndex: 1000, padding: "60px 20px 20px", overflowY: "auto",
+        transform: menuOpen ? "translateX(0)" : "translateX(-100%)",
+        transition: "transform 0.3s ease"
+      }}>
+        <div style={{ color: "#f59e0b", fontWeight: 800, fontSize: 17, marginBottom: 22 }}>⚡ Electrical AI</div>
+        <div style={{ display: "flex", gap: 0, marginBottom: 20, borderRadius: 8, overflow: "hidden", border: "1px solid #1e293b" }}>
+          {["history", "learning", "profile"].map(tab => (
+            <button key={tab} onClick={() => setMenuTab(tab)} style={{
+              flex: 1, padding: "8px 0", background: menuTab === tab ? "#f59e0b" : "#0f172a",
+              color: menuTab === tab ? "#000" : "#64748b", border: "none",
+              fontSize: 10, fontWeight: 700, cursor: "pointer", textTransform: "uppercase"
+            }}>{LABELS[lang][`menu${tab.charAt(0).toUpperCase() + tab.slice(1)}`] || tab}</button>
+          ))}
+        </div>
+
+        {menuTab === "history" && (
+          <div>
+            <div style={{ color: "#64748b", fontSize: 11, fontWeight: 700, marginBottom: 10, textTransform: "uppercase" }}>{L.troubleshootHistory}</div>
+            {troubleshootHistory.length === 0 ? (
+              <div style={{ color: "#334155", fontSize: 13, padding: "12px 0" }}>No sessions yet</div>
+            ) : troubleshootHistory.map((s, i) => (
+              <div key={i} style={{ background: "#1e293b", borderRadius: 8, padding: "10px 12px", marginBottom: 8, border: "1px solid #334155" }}>
+                <div style={{ color: "#e2e8f0", fontSize: 12, marginBottom: 4 }}>{s.issue}</div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#475569", fontSize: 11 }}>{s.date}</span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
+                    background: s.status === "solved" ? "#064e3b" : "#1e3a5f",
+                    color: s.status === "solved" ? "#10b981" : "#60a5fa"
+                  }}>{s.status === "solved" ? L.solved : L.ongoing}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {menuTab === "learning" && (
+          <div>
+            <div style={{ color: "#64748b", fontSize: 11, fontWeight: 700, marginBottom: 10, textTransform: "uppercase" }}>{L.learningHistory}</div>
+            {learningHistory.length === 0 ? (
+              <div style={{ color: "#334155", fontSize: 13, padding: "12px 0" }}>No sessions yet</div>
+            ) : learningHistory.map((s, i) => (
+              <div key={i} style={{ background: "#1e293b", borderRadius: 8, padding: "10px 12px", marginBottom: 8, border: "1px solid #334155" }}>
+                <div style={{ color: "#e2e8f0", fontSize: 12, marginBottom: 4 }}>{s.query}</div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#475569", fontSize: 11 }}>{s.date}</span>
+                  <span style={{ color: "#818cf8", fontSize: 11, fontWeight: 700 }}>{s.mode?.toUpperCase()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {menuTab === "profile" && (
+          <div>
+            <div style={{ background: "#1e293b", borderRadius: 12, padding: "20px", border: "1px solid #334155", textAlign: "center" }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%",
+                background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 22, margin: "0 auto 12px"
+              }}>👷</div>
+              <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 14 }}>Field Engineer</div>
+              <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>Electrical & Automation</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 16 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#f59e0b", fontWeight: 800, fontSize: 20 }}>{troubleshootHistory.length}</div>
+                  <div style={{ color: "#64748b", fontSize: 11 }}>Sessions</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#818cf8", fontWeight: 800, fontSize: 20 }}>{learningHistory.length}</div>
+                  <div style={{ color: "#64748b", fontSize: 11 }}>Lessons</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── HOME SCREEN ────────────────────────────────────────────────────────────
+  function HomeScreen() {
+    return (
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 0 40px" }}>
+        <div style={{ textAlign: "center", marginBottom: 32, paddingTop: 8 }}>
+          <div style={{ fontSize: 46, marginBottom: 8, filter: "drop-shadow(0 0 20px #f59e0b55)" }}>⚡</div>
+          <h1 style={{
+            fontSize: 32, fontWeight: 900, margin: 0, lineHeight: 1.1,
+            background: "linear-gradient(135deg, #f59e0b, #fbbf24, #fde68a)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+          }}>{L.appTitle}</h1>
+          <p style={{ color: "#475569", fontSize: 13, marginTop: 8 }}>{L.appSubtitle}</p>
+        </div>
+
+        {/* Mode buttons */}
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ color: "#64748b", fontSize: 11, fontWeight: 700, textAlign: "center", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 }}>
+            {L.selectMode}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {[
+              { key: "troubleshoot", label: L.troubleshoot, icon: "🔧", color: "#f59e0b" },
+              { key: "learning", label: L.learning, icon: "📚", color: "#818cf8" },
+              { key: "research", label: L.research, icon: "🔬", color: "#34d399" },
+            ].map(m => (
+              <button key={m.key} onClick={() => { setMode(m.key); setTsStarted(false); setLrStarted(false); }} style={{
+                background: mode === m.key ? `${m.color}18` : "#0f172a",
+                border: `2px solid ${mode === m.key ? m.color : "#1e293b"}`,
+                borderRadius: 14, padding: "16px 8px", cursor: "pointer", textAlign: "center", transition: "all 0.2s"
+              }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>{m.icon}</div>
+                <div style={{ color: mode === m.key ? m.color : "#94a3b8", fontWeight: 700, fontSize: 11 }}>{m.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* TROUBLESHOOT PANEL */}
+        {mode === "troubleshoot" && !tsStarted && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              style={{
+                background: dragOver ? "#1e3a5f" : "#0f172a",
+                border: `2px dashed ${dragOver ? "#f59e0b" : uploadedFile ? "#10b981" : "#1e293b"}`,
+                borderRadius: 14, padding: "24px 20px", textAlign: "center",
+                cursor: "pointer", transition: "all 0.2s"
+              }}
+              onClick={() => !uploadedFile && fileInputRef.current?.click()}
+            >
+              {uploadedFile ? (
+                <div>
+                  <div style={{ fontSize: 30, marginBottom: 8 }}>{uploadedFile.type === "application/pdf" ? "📄" : "🖼️"}</div>
+                  <div style={{ color: "#10b981", fontWeight: 700, fontSize: 14, marginBottom: 4 }}>✓ {L.drawingUploaded}</div>
+                  <div style={{ color: "#64748b", fontSize: 12, marginBottom: 10 }}>{uploadedFile.name}</div>
+                  {uploadedImageDataUrl && (
+                    <img src={uploadedImageDataUrl} alt="preview" style={{
+                      maxHeight: 110, maxWidth: "100%", borderRadius: 8,
+                      border: "1px solid #334155", marginBottom: 10, display: "block", margin: "0 auto 10px"
+                    }} />
+                  )}
+                  <button onClick={e => { e.stopPropagation(); setUploadedFile(null); setUploadedImageDataUrl(null); }} style={{
+                    background: "#1e293b", border: "1px solid #334155", borderRadius: 6,
+                    color: "#94a3b8", padding: "5px 12px", fontSize: 12, cursor: "pointer"
+                  }}>{L.changeDrawing}</button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 34, marginBottom: 10 }}>📐</div>
+                  <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{L.uploadTitle}</div>
+                  <div style={{ color: "#475569", fontSize: 12, marginBottom: 14 }}>{L.uploadSub}</div>
+                  <button style={{
+                    background: "#f59e0b", color: "#000", border: "none",
+                    borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer"
+                  }} onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}>{L.uploadBtn}</button>
+                </div>
+              )}
+              <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg"
+                style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+            </div>
+
+            {uploadedFile && (
+              <div style={{ background: "#0f172a", borderRadius: 14, padding: "16px", border: "1px solid #1e293b" }}>
+                <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 600, marginBottom: 10 }}>🗣️ {L.describeIssue}</div>
+                <textarea value={issueDesc} onChange={e => setIssueDesc(e.target.value)}
+                  placeholder={L.describePlaceholder} rows={4} style={{
+                    width: "100%", background: "#1e293b", border: "1px solid #334155",
+                    borderRadius: 8, padding: "12px", color: "#e2e8f0", fontSize: 13,
+                    resize: "none", fontFamily: "inherit", outline: "none",
+                    boxSizing: "border-box", lineHeight: 1.6
+                  }} />
+                <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {L.examples.map(ex => (
+                    <button key={ex} onClick={() => setIssueDesc(ex)} style={{
+                      background: "#1e293b", border: "1px solid #334155", borderRadius: 6,
+                      color: "#94a3b8", padding: "4px 10px", fontSize: 11, cursor: "pointer"
+                    }}>{ex}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {uploadedFile && issueDesc && (
+              <button onClick={startTroubleshoot} style={{
+                width: "100%", padding: "16px",
+                background: "linear-gradient(135deg, #d97706, #f59e0b)",
+                color: "#000", border: "none", borderRadius: 12,
+                fontSize: 16, fontWeight: 800, cursor: "pointer",
+                boxShadow: "0 4px 24px #f59e0b33"
+              }}>{L.letsBegin}</button>
+            )}
+          </div>
+        )}
+
+        {/* LEARNING / RESEARCH PANEL */}
+        {(mode === "learning" || mode === "research") && !lrStarted && (
+          <div style={{ background: "#0f172a", borderRadius: 14, padding: "20px", border: "1px solid #1e293b" }}>
+            <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+              {mode === "learning" ? `📚 ${L.learningTitle}` : `🔬 ${L.researchTitle}`}
+            </div>
+            <textarea value={lrQuery} onChange={e => setLrQuery(e.target.value)}
+              placeholder={mode === "learning" ? L.learningPlaceholder : L.researchPlaceholder}
+              rows={4} style={{
+                width: "100%", background: "#1e293b", border: "1px solid #334155",
+                borderRadius: 8, padding: "12px", color: "#e2e8f0", fontSize: 13,
+                resize: "none", fontFamily: "inherit", outline: "none",
+                boxSizing: "border-box", lineHeight: 1.6
+              }} />
+            {mode === "learning" && (
+              <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {["VFD Drive", "PLC DI/DO", "Contactor", "VVVF Drive", "Encoder", "Safety Relay"].map(ex => (
+                  <button key={ex} onClick={() => setLrQuery(ex)} style={{
+                    background: "#1e293b", border: "1px solid #334155", borderRadius: 6,
+                    color: "#94a3b8", padding: "4px 10px", fontSize: 11, cursor: "pointer"
+                  }}>{ex}</button>
+                ))}
+              </div>
+            )}
+            <button onClick={startLR} disabled={!lrQuery.trim()} style={{
+              width: "100%", marginTop: 14, padding: "14px",
+              background: lrQuery.trim()
+                ? (mode === "learning" ? "linear-gradient(135deg, #4f46e5, #818cf8)" : "linear-gradient(135deg, #059669, #34d399)")
+                : "#1e293b",
+              color: lrQuery.trim() ? "#fff" : "#475569", border: "none", borderRadius: 10,
+              fontSize: 15, fontWeight: 700, cursor: lrQuery.trim() ? "pointer" : "default"
+            }}>
+              {mode === "learning" ? L.learnBtn : L.researchBtn}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── RENDER ─────────────────────────────────────────────────────────────────
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(ellipse at top, #0d1b2a 0%, #060d18 60%, #000 100%)",
+      fontFamily: "'Inter', 'Segoe UI', sans-serif", color: "#e2e8f0"
+    }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        textarea::placeholder { color: #475569; }
+        input::placeholder { color: #475569; }
+      `}</style>
+
+      {menuOpen && <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 999 }} />}
+      <SideMenu />
+
+      {/* TOP BAR */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 100,
+        background: "rgba(6,13,24,0.95)", backdropFilter: "blur(12px)",
+        borderBottom: "1px solid #1e293b",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 16px", height: 52
+      }}>
+        <button onClick={() => setMenuOpen(!menuOpen)} style={{
+          background: "none", border: "none", cursor: "pointer", padding: 8,
+          display: "flex", flexDirection: "column", gap: 5
+        }}>
+          {[0,1,2].map(i => <span key={i} style={{ display: "block", width: 22, height: 2, background: "#94a3b8", borderRadius: 2 }} />)}
+        </button>
+
+        <div style={{ color: "#f59e0b", fontWeight: 800, fontSize: 16 }}>⚡ {L.appTitle}</div>
+
+        {/* LANGUAGE SELECTOR */}
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setLangOpen(!langOpen)} style={{
+            background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8,
+            padding: "6px 12px", color: "#94a3b8", fontSize: 12,
+            cursor: "pointer", fontWeight: 600
+          }}>
+            🌐 {lang === "hinglish" ? "HG" : lang === "hindi" ? "HI" : "EN"} ▾
+          </button>
+          {langOpen && (
+            <div style={{
+              position: "absolute", right: 0, top: "calc(100% + 6px)",
+              background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10,
+              overflow: "hidden", zIndex: 200, minWidth: 130,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)"
+            }}>
+              {[["english","🇬🇧 English"],["hindi","🇮🇳 हिन्दी"],["hinglish","🔀 Hinglish"]].map(([l, label]) => (
+                <button key={l} onClick={() => { setLang(l); setLangOpen(false); }} style={{
+                  width: "100%", padding: "10px 16px", background: lang === l ? "#1e293b" : "none",
+                  border: "none", color: lang === l ? "#f59e0b" : "#94a3b8",
+                  fontSize: 13, cursor: "pointer", textAlign: "left", fontWeight: lang === l ? 700 : 400
+                }}>{label}</button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 🖥️ MAIN CONTROL DASHBOARD ARCHITECTURE SURFACE VIEW */}
-      <div className="container mx-auto px-4 pt-24 pb-12 max-w-5xl">
-        
-        <header className="text-center mb-10">
-          <div className="inline-block px-3 py-1 bg-slate-900 border border-slate-800 text-[10px] font-bold rounded-full text-emerald-400 uppercase tracking-widest mb-3 shadow-xl">
-            ⚡ Premium Engineering Dashboard Suite ⚡
-          </div>
-          <h1 className="text-5xl font-black tracking-tight uppercase bg-clip-text text-transparent bg-gradient-to-r from-slate-100 via-emerald-400 to-teal-500">
-            ELECTRICAL AI PLATFORM
-          </h1>
-        </header>
-
-        {/* 🎛️ COGNITIVE DROP-DOWN HUB SELECTOR MODULE CENTER ALIGNED */}
-        <div className="flex justify-center mb-10">
-          <div className="bg-slate-900 border border-slate-800 p-2 rounded-2xl flex items-center gap-2 shadow-2xl relative">
-            <span className="text-xs font-bold px-3 text-slate-400 uppercase tracking-widest">Select Operational Mode:</span>
-            <select
-              value={globalMode}
-              onChange={(e) => { setGlobalMode(e.target.value); triggerResetTroubleshooting(); setLearningResponse(null); }}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-black uppercase text-emerald-400 tracking-wider focus:outline-none focus:border-emerald-500 cursor-pointer shadow-inner transition-colors"
-            >
-              <option value="troubleshoot">🛠️ Troubleshoot System Faults</option>
-              <option value="learning">📚 Interactive Learning Hub</option>
-              <option value="research">🔬 System Engineering Research</option>
-            </select>
-          </div>
-        </div>
-
-        {/* 🛠️ MODULE NODE VIEW A: TROUBLESHOOTING PROCESSING GRID */}
-        {globalMode === 'troubleshoot' && (
-          <div className="space-y-6">
-            
-            {/* START NEW TROUBLESHOOTING CONTROL BLOCK BUTTON LINKS */}
-            <div className="flex justify-end">
-              <button
-                onClick={triggerResetTroubleshooting}
-                className="px-4 py-2 bg-slate-900 border border-slate-800 hover:border-emerald-500/30 text-emerald-400 text-xs font-extrabold rounded-xl shadow-xl transition-all active:scale-95 uppercase tracking-wider"
-              >
-                🔄 Start New Troubleshooting
-              </button>
-            </div>
-
-            {!activeSession && !conclusionData && (
-              <form onSubmit={handleTroubleshootInitSubmit} className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6 animate-fadeIn">
-                <h2 className="text-lg font-black uppercase tracking-wider text-emerald-400 border-b border-slate-800 pb-3">Isolate Hardware Malfunction Parameters</h2>
-
-                {/* Drag-Drop Target Container Node Allocation Field (100MB Restrictive Protection) */}
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Upload Target Engineering Drawing Sheet (Max 100MB File - PDF, PNG, JPG)</label>
-                  <div className="border-2 border-dashed border-slate-700 bg-slate-950/40 p-8 rounded-2xl text-center cursor-pointer hover:border-emerald-500/40 transition-colors relative group">
-                    <input 
-                      type="file" 
-                      accept=".pdf,.png,.jpg,.jpeg" 
-                      onChange={(e) => setFile(e.target.files[0])}
-                      className="absolute inset-0 opacity-0 cursor-pointer" 
-                    />
-                    <div className="space-y-2">
-                      <span className="text-3xl block group-hover:scale-110 transition-transform">⚙️</span>
-                      <p className="text-xs font-bold text-slate-300">{file ? `Target Data Buffer Verified: ${file.name}` : "Drop engineering layout document here or scan network storage units"}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">Maximum file limits hardcoded to 100MB threshold constraints.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Manual Issue Reporting Data Fields */}
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Describe System Fault Telemetry Readings</label>
-                  <textarea
-                    rows={4}
-                    value={problemDescription}
-                    onChange={(e) => setProblemDescription(e.target.value)}
-                    placeholder="Provide description (e.g., PLC Digital output loop failure, VFD acceleration overloading circuit parameters trip indicator, etc.)"
-                    className="w-full bg-slate-950 border border-slate-800 font-medium rounded-xl p-4 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isProcessing}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 text-slate-950 text-xs font-black uppercase tracking-widest rounded-xl font-black shadow-lg shadow-emerald-950/20 active:scale-[0.99] disabled:opacity-50 transition-transform"
-                >
-                  {isProcessing ? "Analyzing 100MB Topology Vector Coordinates..." : "⚡ Let's Begin Diagnostic Run"}
-                </button>
-              </form>
-            )}
-
-            {/* DYNAMIC COMPILER ACTIVE INSTANCE TRACKER LOGIC WINDOW VIEW */}
-            {activeSession && (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-fadeIn">
-                
-                {/* Left Metrics View: Isolated Token Identifiers */}
-                <div className="md:col-span-5 bg-slate-900 border border-slate-800 p-6 rounded-2xl h-fit space-y-4 shadow-xl">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-2">Multimodal Topology Analytics</h3>
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-950 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded">Engine Classification</span>
-                    <p className="text-sm font-black text-slate-100 mt-1">{activeSession.system_type}</p>
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-widest bg-teal-950 text-teal-400 border border-teal-800/60 px-2 py-0.5 rounded">File Format Analysis</span>
-                    <p className="text-xs font-bold text-slate-300 mt-1">{activeSession.drawing_format}</p>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px]">
-                    <span className="text-slate-500 font-bold uppercase tracking-wider block mb-1">Target Statement Logged:</span>
-                    <p className="text-slate-300 italic">"{activeSession.problem_statement}"</p>
-                  </div>
-                </div>
-
-                {/* Right Interactive Loop View Frame: Advanced Solution Maps */}
-                <div className="md:col-span-7 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
-                      <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest">Active Resolution Queue</h3>
-                      <span className="bg-slate-950 border border-slate-800 text-slate-400 font-mono text-[10px] px-2.5 py-1 rounded-md font-bold">SEQUENCE SEQUENCE INDEX: #{activeSession.current_idx}</span>
-                    </div>
-
-                    {/* Filter Out Next Step Node Logic To Avoid Screen Render Multi-Key Repetition Code Errors */}
-                    {activeSession.all_steps.filter(s => s.index === activeSession.current_idx).map((step) => (
-                      <div key={step.index} className="space-y-4 animate-fadeIn">
-                        <div className="bg-slate-950 p-4 rounded-xl border-l-4 border-l-emerald-400 text-xs font-medium leading-relaxed text-slate-200">
-                          {step.instruction[currentLanguage] || step.instruction['english']}
-                          <div className="mt-2 text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider">CRITICAL SCHEMATIC COMPONENT REFERENCE TAG: {step.tag_no}</div>
-                        </div>
-
-                        {/* HIGH ZOOMABLE MACRO POSITION PLOT COMPONENT BOX GRAPHIC VIEW REFERENCE IMAGE */}
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Interactive Magnification Target Vector Window View</p>
-                          <div className="relative w-full h-64 overflow-hidden rounded-xl border border-slate-800 bg-black cursor-zoom-in group">
-                            <img 
-                              src={step.section_image} 
-                              alt="Isolated Pin Connections Schematic Representation" 
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-170 transform origin-center" 
-                            />
-                            <div className="absolute bottom-2 right-2 bg-slate-950/80 text-[9px] text-slate-400 font-mono px-2 py-0.5 rounded border border-slate-700 pointer-events-none">
-                              Hover Cursor Array To Zoom Connections
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Operational Telemetry Values Input Forms */}
-                  <form onSubmit={handleTroubleshootStepProgression} className="mt-6 pt-4 border-t border-slate-800 space-y-2">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Type Hardware Feedback Loop Measurement Reading</label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text"
-                        value={userReadingInput}
-                        onChange={(e) => setUserReadingInput(e.target.value)}
-                        placeholder="e.g., '115 Amps normal load', 'terminal check ok', or type 'problem solved'"
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 text-xs font-semibold text-slate-200 placeholder-slate-700 focus:outline-none focus:border-emerald-500 transition-colors"
-                      />
-                      <button 
-                        type="submit"
-                        className="px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-200 transform active:scale-95 shrink-0"
-                      >
-                        Submit Step Evaluation ➡️
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-              </div>
-            )}
-
-            {/* 📝 COMPILER AUDIT SYSTEM DATA SHEET LAYER VIEW PARSER CLOSURE SUMMARY WINDOW */}
-            {conclusionData && (
-              <div className="bg-slate-900 border border-emerald-500/20 p-8 rounded-3xl shadow-2xl border-t-4 border-t-emerald-400 space-y-6 animate-fadeIn">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-                  <div>
-                    <h2 className="text-xl font-black text-emerald-400 uppercase tracking-tight">Root Cause Investigation Analysis Matrix Consolidated</h2>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Static validation checks closed. Record registry tracking locked successful.</p>
-                  </div>
-                  <span className="bg-emerald-950 text-emerald-400 text-[10px] font-bold font-mono px-3 py-1 rounded border border-emerald-800 uppercase tracking-widest">SUCCESS LOCK</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800"><span className="text-slate-500 font-bold uppercase">IDENTIFIED SYSTEM HUB:</span> <span className="text-slate-200">{conclusionData.system_type}</span></div>
-                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800"><span className="text-slate-500 font-bold uppercase">DOCUMENTATION TYPE:</span> <span className="text-slate-200">{conclusionData.drawing_format}</span></div>
-                </div>
-
-                {/* MAIN ROOT CAUSE LOCALIZATION SHEET TEXT BLOCK */}
-                <div className="bg-emerald-950/20 border border-emerald-800/40 p-5 rounded-2xl">
-                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 font-mono">🛡️ Root Cause Evaluation Summary</h4>
-                  <p className="text-xs font-semibold leading-relaxed text-slate-200">
-                    {conclusionData.root_cause_analysis[currentLanguage] || conclusionData.root_cause_analysis['english']}
-                  </p>
-                </div>
-
-                {/* LIST OF STEPS EXECUTED LOOP TRACE MATRIX DISPLAY */}
-                <div>
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 font-mono">Telemetry Trail Tracking Sequence Logs</h4>
-                  <div className="space-y-2">
-                    {conclusionData.detailed_audit_trail.map((log, index) => (
-                      <div key={index} className="bg-slate-950 border border-slate-800 p-3 rounded-xl flex justify-between text-xs font-mono">
-                        <span className="text-emerald-400 font-bold">Sequence Trace Node Index #{log.step_index}</span>
-                        <span className="text-slate-400">Feedback Matrix Parameter Input: <strong className="text-slate-200">"{log.user_input_reading}"</strong></span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={triggerResetTroubleshooting}
-                  className="w-full py-4 bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-200 text-xs font-bold tracking-widest rounded-xl transition-all uppercase"
-                >
-                  Clear Session History Buffers & Return To Central Hub View
-                </button>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* 📚 MODULE NODE VIEW B: INTERACTIVE MODULAR LEARNING ENGINE ACQUISITION CURRICULUM */}
-        {globalMode === 'learning' && (
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6 animate-fadeIn">
-            <h2 className="text-lg font-black uppercase tracking-wider text-emerald-400 border-b border-slate-800 pb-3">Automation Engineering Asset Academy Data Vault</h2>
-
-            <form onSubmit={handleLearningQuerySubmit} className="space-y-4">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Input Component Name or Circuit Architecture System Query</label>
-              <div className="flex gap-2">
-                <input 
-                  type="text"
-                  value={learningQuery}
-                  onChange={(e) => setLearningQuery(e.target.value)}
-                  placeholder="e.g., VFD Dynamic Braking Resistors layout, optocoupler electrical separation bounds..."
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs font-semibold text-slate-200 placeholder-slate-700 focus:outline-none focus:border-emerald-500 transition-colors"
-                />
-                <button 
-                  type="submit"
-                  className="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl font-black"
-                >
-                  Query Vault Matrix 🧠
-                </button>
-              </div>
-            </form>
-
-            {learningResponse && (
-              <div className="mt-8 border-t border-slate-800 pt-6 space-y-6 animate-fadeIn">
-                <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
-                  <h3 className="text-base font-black text-slate-100 uppercase tracking-wide border-b border-slate-800 pb-2">{learningResponse.title}</h3>
-                  <p className="text-xs leading-relaxed text-slate-300 font-medium">
-                    {learningResponse.structured_data[currentLanguage] || learningResponse.structured_data['english']}
-                  </p>
-
-                  {/* Structured Graphic Image Render Target For Component Definitions */}
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 font-mono">Structural Assembly Reference Schematic Representation Plot</p>
-                    <div className="w-full max-w-sm h-44 overflow-hidden rounded-xl border border-slate-800 bg-black">
-                      <img 
-                        src={learningResponse.component_schematic_url} 
-                        alt="HD Curriculum Explanatory Target Frame Plot" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* END PAGE DEEP CONTINUOUS TYPING FIELD BOX COMPONENT FOR SUBSEQUENT TRACES */}
-                <form onSubmit={handleLearningFollowUpSubmit} className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2">
-                  <label className="block text-[9px] font-black text-emerald-400 uppercase tracking-widest font-mono">Request Granular Deep-Dive Trace Extensions On Current Asset</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text"
-                      value={learningFollowUp}
-                      onChange={(e) => setLearningFollowUp(e.target.value)}
-                      placeholder="Ask for deeper details or clarify micro-structural attributes of this asset frame module..."
-                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 placeholder-slate-700 focus:outline-none focus:border-emerald-500 transition-colors"
-                    />
-                    <button 
-                      type="submit"
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold rounded-lg uppercase tracking-wide"
-                    >
-                      Deep Trace Analysis ➡️
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* 🔬 MODULE NODE VIEW C: SYSTEM ENGINEERING RESEARCH POINTER MONITOR CONTROL */}
-        {globalMode === 'research' && (
-          <div className="bg-slate-900 border border-slate-800 p-10 rounded-3xl text-center space-y-4 animate-fadeIn">
-            <span className="text-4xl block">🔬</span>
-            <h2 className="text-base font-black text-emerald-400 uppercase tracking-widest">Advanced Systems Engineering Research Node</h2>
-            <p className="text-xs text-slate-400 max-w-lg mx-auto font-medium leading-relaxed">
-              Research index vectors are synced concurrently inside the primary FastAPI loop structure. Multimodal prompt structures are logged active waiting for code processing queries.
-            </p>
-            <div className="inline-block px-4 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-[10px] font-mono text-slate-500 animate-pulse uppercase tracking-wider">
-              Telemetry Status: Active Operational Standby Node Matrix Locked
-            </div>
-          </div>
-        )}
-
+      {/* MAIN CONTENT */}
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "20px 16px 40px" }}>
+        {mode === "troubleshoot" && tsStarted ? <TroubleshootChat />
+          : (mode === "learning" || mode === "research") && lrStarted ? <LRChat />
+          : <HomeScreen />}
       </div>
     </div>
   );
